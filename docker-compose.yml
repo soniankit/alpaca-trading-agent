@@ -26,8 +26,6 @@ services:
       - "4000:4000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/trading_agent?schema=public
-      - ALPACA_API_KEY=${ALPACA_API_KEY}
-      - ALPACA_API_SECRET=${ALPACA_API_SECRET}
       - FMP_API_KEY=${FMP_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
