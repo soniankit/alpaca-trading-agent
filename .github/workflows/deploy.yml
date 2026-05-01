@@ -67,6 +67,18 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Checkout infra repo for docker-compose
+        uses: actions/checkout@v4
+
+      - name: Copy docker-compose.yml to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/app"
+
       - name: SSH into GCP VM and Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -74,13 +86,21 @@ jobs:
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
+            set -e
             cd ~/app
+            
+            # Login to GHCR
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            git pull origin main
-            
-            # Prune old images to force a fresh pull of :latest
+            # Prune old images to free space and clear cache
             docker image prune -a -f
             
+            # Force pull the latest images
             docker compose pull
+            
+            # Recreate containers with the new images
+            docker compose down
             docker compose up -d --remove-orphans
+            
+            # Verify containers are running
+            docker compose ps
