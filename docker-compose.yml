@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: trading_agent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  service:
+    image: ghcr.io/soniankit/trading-agent-service:latest
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm start"
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/trading_agent?schema=public
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_API_SECRET=${ALPACA_API_SECRET}
+      - FMP_API_KEY=${FMP_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web-client:
+    image: ghcr.io/soniankit/trading-agent-web-client:latest
+    environment:
+      - NEXT_PUBLIC_API_URL=http://service:4000
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - service
+
+volumes:
+  postgres_data:

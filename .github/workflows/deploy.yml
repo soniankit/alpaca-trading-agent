@@ -1,0 +1,85 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows manual trigger
+
+env:
+  REGISTRY: ghcr.io
+  SERVICE_IMAGE_NAME: ${{ github.repository_owner }}/trading-agent-service
+  WEB_CLIENT_IMAGE_NAME: ${{ github.repository_owner }}/trading-agent-web-client
+
+jobs:
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout infrastructure repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Service repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/trading-agent-service
+          path: trading-agent-service
+          # Note: If repos are private, you need a Personal Access Token (PAT)
+          # token: ${{ secrets.PAT }} 
+
+      - name: Checkout Web Client repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/trading-agent-web-client
+          path: trading-agent-web-client
+          # token: ${{ secrets.PAT }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Service Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./trading-agent-service
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.SERVICE_IMAGE_NAME }}:latest
+
+      - name: Build and push Web Client Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./trading-agent-web-client
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.WEB_CLIENT_IMAGE_NAME }}:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://service:4000
+
+  deploy-to-gcp:
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: SSH into GCP VM and Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            cd ~/app
+            # Login to GHCR to pull the private/public packages
+            echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull the latest changes for the docker-compose.yml
+            git pull origin main
+            
+            # Pull the latest pre-built images from GitHub Container Registry
+            docker compose pull
+            
+            # Recreate containers with the new images
+            docker compose up -d
