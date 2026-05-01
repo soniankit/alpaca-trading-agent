@@ -92,15 +92,15 @@ jobs:
             # Login to GHCR
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Prune old images to free space and clear cache
-            docker image prune -a -f
+            # Prune dangling images only (faster, keeps cached layers)
+            docker image prune -f
             
-            # Force pull the latest images
-            docker compose pull
+            # Pull latest images quietly
+            docker compose pull --quiet
             
-            # Recreate containers with the new images
+            # Recreate containers quietly
             docker compose down
-            docker compose up -d --remove-orphans
+            docker compose up -d --remove-orphans --quiet-pull
             
             # Verify containers are running
             docker compose ps
