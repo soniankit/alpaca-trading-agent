@@ -3,6 +3,8 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ "main" ]
+  repository_dispatch:
+    types: [trigger-deploy]
   workflow_dispatch: # Allows manual trigger
 
 env:
