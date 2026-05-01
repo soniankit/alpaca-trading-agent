@@ -85,22 +85,20 @@ jobs:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          command_timeout: 20m
           script: |
             set -e
             cd ~/app
             
-            # Login to GHCR
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Prune dangling images only (faster, keeps cached layers)
-            docker image prune -f
             
             # Pull latest images quietly
             docker compose pull --quiet
             
-            # Recreate containers quietly
-            docker compose down
-            docker compose up -d --remove-orphans --quiet-pull
+            # Recreate containers with the new images (no down needed, faster)
+            docker compose up -d --remove-orphans --force-recreate --quiet-pull
             
-            # Verify containers are running
+            # Final prune of ONLY dangling images after success
+            docker image prune -f
+            
             docker compose ps
