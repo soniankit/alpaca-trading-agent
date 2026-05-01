@@ -49,6 +49,7 @@ jobs:
         with:
           context: ./trading-agent-service
           push: true
+          no-cache: true
           tags: ${{ env.REGISTRY }}/${{ env.SERVICE_IMAGE_NAME }}:latest
 
       - name: Build and push Web Client Image
@@ -56,9 +57,10 @@ jobs:
         with:
           context: ./trading-agent-web-client
           push: true
+          no-cache: true
           tags: ${{ env.REGISTRY }}/${{ env.WEB_CLIENT_IMAGE_NAME }}:latest
           build-args: |
-            NEXT_PUBLIC_API_URL=http://service:4000
+            NEXT_PUBLIC_API_URL=http://${{ secrets.GCP_VM_IP }}:4000
 
   deploy-to-gcp:
     needs: build-and-push-images
@@ -73,14 +75,12 @@ jobs:
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
             cd ~/app
-            # Login to GHCR to pull the private/public packages
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull the latest changes for the docker-compose.yml
             git pull origin main
             
-            # Pull the latest pre-built images from GitHub Container Registry
-            docker compose pull
+            # Prune old images to force a fresh pull of :latest
+            docker image prune -a -f
             
-            # Recreate containers with the new images
-            docker compose up -d
+            docker compose pull
+            docker compose up -d --remove-orphans
