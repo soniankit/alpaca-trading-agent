@@ -98,13 +98,29 @@ jobs:
             
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull latest images quietly
-            docker compose pull --quiet
+            # Check connectivity to GHCR
+            echo "Testing connectivity to ghcr.io..."
+            curl -s -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://ghcr.io/v2/ || echo "WARN: ghcr.io not reachable directly"
             
-            # Recreate containers with the new images (no down needed, faster)
+            # Pull with retry (3 attempts, 30s delay)
+            for i in 1 2 3; do
+              echo "Pull attempt $i..."
+              if docker compose pull --quiet 2>&1; then
+                echo "Pull succeeded on attempt $i"
+                break
+              fi
+              if [ "$i" -eq 3 ]; then
+                echo "Pull failed after 3 attempts"
+                exit 1
+              fi
+              echo "Pull failed, retrying in 30s..."
+              sleep 30
+            done
+            
+            # Recreate containers with the new images
             docker compose up -d --remove-orphans --force-recreate --quiet-pull
             
-            # Final prune of ONLY dangling images after success
+            # Cleanup
             docker image prune -f
             
             docker compose ps
