@@ -85,7 +85,7 @@ jobs:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          command_timeout: 20m
+          command_timeout: 30m
           script: |
             set -e
             cd ~/app
