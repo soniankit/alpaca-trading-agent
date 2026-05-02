@@ -117,8 +117,11 @@ jobs:
               sleep 30
             done
             
-            # Recreate containers with the new images
-            docker compose up -d --remove-orphans --force-recreate --quiet-pull
+            # Ensure db is running first (no recreate needed)
+            docker compose up -d db
+            
+            # Recreate only app containers (not the database)
+            docker compose up -d --no-deps --force-recreate service web-client
             
             # Cleanup
             docker image prune -f
