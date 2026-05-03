@@ -12,6 +12,10 @@ env:
   SERVICE_IMAGE_NAME: ${{ github.repository_owner }}/trading-agent-service
   WEB_CLIENT_IMAGE_NAME: ${{ github.repository_owner }}/trading-agent-web-client
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
 jobs:
   build-and-push-images:
     runs-on: ubuntu-latest
@@ -20,6 +24,11 @@ jobs:
       packages: write
 
     steps:
+      - name: Debounce Cooldown
+        run: |
+          echo "Debouncing deployment for 5 minutes to batch multiple repository updates..."
+          sleep 300
+
       - name: Checkout infrastructure repo
         uses: actions/checkout@v4
 
