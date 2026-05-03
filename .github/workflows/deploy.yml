@@ -58,7 +58,7 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.WEB_CLIENT_IMAGE_NAME }}:latest
           build-args: |
-            NEXT_PUBLIC_API_URL=http://service:4000
+            NEXT_PUBLIC_API_URL=/api
 
   deploy-to-gcp:
     needs: build-and-push-images
@@ -74,7 +74,7 @@ jobs:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          source: "docker-compose.yml"
+          source: "docker-compose.yml,nginx.conf"
           target: "~/app"
 
       - name: SSH into GCP VM and Deploy
@@ -105,7 +105,8 @@ jobs:
             for i in 1 2 3 4 5; do
               echo "Pull attempt $i..."
               if docker pull ghcr.io/soniankit/trading-agent-service:latest && \
-                 docker pull ghcr.io/soniankit/trading-agent-web-client:latest; then
+                 docker pull ghcr.io/soniankit/trading-agent-web-client:latest && \
+                 docker pull nginx:alpine; then
                 echo "Pull succeeded on attempt $i"
                 break
               fi
@@ -121,7 +122,7 @@ jobs:
             docker compose up -d db
             
             # Recreate only app containers (not the database)
-            docker compose up -d --no-deps --force-recreate service web-client
+            docker compose up -d --no-deps --force-recreate service web-client nginx
             
             # Cleanup
             docker image prune -f
