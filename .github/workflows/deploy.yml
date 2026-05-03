@@ -49,7 +49,6 @@ jobs:
         with:
           context: ./trading-agent-service
           push: true
-          no-cache: true
           tags: ${{ env.REGISTRY }}/${{ env.SERVICE_IMAGE_NAME }}:latest
 
       - name: Build and push Web Client Image
@@ -57,7 +56,6 @@ jobs:
         with:
           context: ./trading-agent-web-client
           push: true
-          no-cache: true
           tags: ${{ env.REGISTRY }}/${{ env.WEB_CLIENT_IMAGE_NAME }}:latest
           build-args: |
             NEXT_PUBLIC_API_URL=http://service:4000
@@ -102,19 +100,21 @@ jobs:
             echo "Testing connectivity to ghcr.io..."
             curl -s -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://ghcr.io/v2/ || echo "WARN: ghcr.io not reachable directly"
             
-            # Pull with retry (3 attempts, 30s delay)
-            for i in 1 2 3; do
+            # Pull with retry (5 attempts, 60s delay, serial pull)
+            # We pull individually to avoid concurrent connection stress on slow networks
+            for i in 1 2 3 4 5; do
               echo "Pull attempt $i..."
-              if docker compose pull --quiet 2>&1; then
+              if docker pull ghcr.io/soniankit/trading-agent-service:latest && \
+                 docker pull ghcr.io/soniankit/trading-agent-web-client:latest; then
                 echo "Pull succeeded on attempt $i"
                 break
               fi
-              if [ "$i" -eq 3 ]; then
-                echo "Pull failed after 3 attempts"
+              if [ "$i" -eq 5 ]; then
+                echo "Pull failed after 5 attempts"
                 exit 1
               fi
-              echo "Pull failed, retrying in 30s..."
-              sleep 30
+              echo "Pull failed, retrying in 60s..."
+              sleep 60
             done
             
             # Ensure db is running first (no recreate needed)
