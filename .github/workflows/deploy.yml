@@ -136,4 +136,9 @@ jobs:
             # Cleanup
             docker image prune -f
             
-            docker compose ps
+            # Diagnostic: Check logs after deployment
+          docker compose ps
+          echo "--- SERVICE LOGS ---"
+          docker compose logs --tail=100 service
+          echo "--- NGINX LOGS ---"
+          docker compose logs --tail=100 nginx
