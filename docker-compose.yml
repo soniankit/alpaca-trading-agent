@@ -17,7 +17,7 @@ services:
 
   service:
     image: ghcr.io/soniankit/trading-agent-service:latest
-    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm start"
+    command: sh -c "npx prisma generate && npx prisma db push && npm run seed && npm start"
     restart: always
     environment:
       - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/trading_agent?schema=public
